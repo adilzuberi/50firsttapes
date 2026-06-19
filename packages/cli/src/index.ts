@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import { readFile } from "node:fs/promises";
 import { basename, relative, resolve } from "node:path";
-import { ingestBundle, lintBundle, queryBundle, type Issue } from "@50firsttapes/core";
+import { ingestBundle, lintBundle, queryBundle, writeNote, type Issue } from "@50firsttapes/core";
 
 const program = new Command();
 program
@@ -184,13 +184,44 @@ program
     }
   });
 
-for (const verb of ["write", "govern"] as const) {
-  program
-    .command(verb)
-    .description(`${verb} - not yet implemented (v1 stub)`)
-    .action(() => {
-      console.log(`tapes ${verb}: stub - see the 50 First Tapes v1 plan.`);
-    });
+async function loadContent(source: string | undefined): Promise<string> {
+  return source ? readFile(resolve(source), "utf8") : readStdin();
 }
+
+function printIssues(issues: Issue[]): boolean {
+  for (const i of issues) console.log(`${i.level === "error" ? "x" : "!"} [${i.code}] ${i.message}`);
+  return issues.some((i) => i.level === "error");
+}
+
+program
+  .command("write")
+  .description("write exact content to a note id, through the governance gates")
+  .argument("<id>", "concept id / path, e.g. wiki/notes/foo")
+  .argument("[source]", "file with the note content; omit to read stdin")
+  .option("--bundle <path>", "path to the bundle root", ".")
+  .option("--dry-run", "run the gates but do not write")
+  .action(async (id: string, source: string | undefined, opts: { bundle: string; dryRun?: boolean }) => {
+    const root = resolve(opts.bundle);
+    const res = await writeNote(root, id, await loadContent(source), { dryRun: opts.dryRun });
+    if (printIssues(res.issues)) {
+      console.log(`\nrefused — ${id} not written (governance gate)`);
+      process.exitCode = 1;
+      return;
+    }
+    console.log(res.written ? `wrote → ${relative(root, res.path)}` : `(dry-run) would write → ${res.id}.md`);
+  });
+
+program
+  .command("govern")
+  .description("dry-run the governance gates on proposed content (never writes)")
+  .argument("<id>", "intended concept id")
+  .argument("[source]", "file with the content; omit to read stdin")
+  .option("--bundle <path>", "path to the bundle root", ".")
+  .action(async (id: string, source: string | undefined, opts: { bundle: string }) => {
+    const res = await writeNote(resolve(opts.bundle), id, await loadContent(source), { dryRun: true });
+    const blocked = printIssues(res.issues);
+    console.log(blocked ? "refused — a gate blocks this write" : "accepted — gates pass");
+    if (blocked) process.exitCode = 1;
+  });
 
 await program.parseAsync(process.argv);

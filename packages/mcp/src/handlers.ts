@@ -1,5 +1,5 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve, sep } from "node:path";
+import { readdir, readFile } from "node:fs/promises";
+import { resolve, sep } from "node:path";
 import {
   applyPatch,
   defaultGates,
@@ -7,6 +7,7 @@ import {
   parseDocument,
   queryBundle,
   runGates,
+  writeNote,
   type Issue,
 } from "@50firsttapes/core";
 
@@ -214,13 +215,7 @@ export function createHandlers(cfg: McpConfig): Record<string, Handler> {
       const id = str(args.id);
       const content = str(args.content);
       if (!id || content === undefined) throw new Error("write requires id and content");
-      const { abs, rel } = resolveWithin(cfg, id);
-      const { frontmatter } = parseDocument(content);
-      const issues = runGates(defaultGates, { path: rel, body: content, frontmatter });
-      if (blocks(issues)) return { written: false, issues };
-      await mkdir(dirname(abs), { recursive: true });
-      await writeFile(abs, content, "utf8");
-      return { written: true, id, issues };
+      return writeNote(cfg.bundle, id, content);
     },
 
     async patch(args) {
@@ -230,19 +225,14 @@ export function createHandlers(cfg: McpConfig): Record<string, Handler> {
       if (!id || !anchorHash || replacement === undefined) {
         throw new Error("patch requires id, anchor and replacement");
       }
-      const { abs, rel } = resolveWithin(cfg, id);
+      const { abs } = resolveWithin(cfg, id);
       const raw = await readFile(abs, "utf8");
       const m = /^(---\n[\s\S]*?\n---\n?)([\s\S]*)$/.exec(raw);
       const head = m ? m[1] : "";
       const body = m ? m[2] : raw;
       const result = applyPatch(body, { anchor: anchorHash, replacement });
       if (!result.ok) return { written: false, reason: result.reason };
-      const content = head + result.body;
-      const { frontmatter } = parseDocument(content);
-      const issues = runGates(defaultGates, { path: rel, body: content, frontmatter });
-      if (blocks(issues)) return { written: false, issues };
-      await writeFile(abs, content, "utf8");
-      return { written: true, id, issues };
+      return writeNote(cfg.bundle, id, head + result.body);
     },
   };
 }

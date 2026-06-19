@@ -128,6 +128,48 @@ export async function lintBundle(
   };
 }
 
+export interface WriteResult {
+  id: string;
+  path: string;
+  written: boolean;
+  /** Governance findings — an error here blocks the write. */
+  issues: Issue[];
+}
+
+/** Resolve a bundle-relative id to a safe absolute path, rejecting escapes. */
+function resolveInBundle(bundleRoot: string, id: string): { abs: string; rel: string } {
+  const rel = `${id.replace(/^\/+/, "").replace(/\.md$/, "")}.md`;
+  if (rel.split("/").includes("..")) throw new Error(`invalid id: ${id}`);
+  const abs = resolve(bundleRoot, rel);
+  if (abs !== bundleRoot && !abs.startsWith(bundleRoot + sep)) {
+    throw new Error(`id escapes the bundle: ${id}`);
+  }
+  return { abs, rel };
+}
+
+/**
+ * Write exact content to a note id, through the governance gates. An off-limits
+ * path or credential-like content is refused and nothing is written. This is the
+ * single governed-write path shared by ingest, the CLI, and the MCP server.
+ */
+export async function writeNote(
+  bundleRoot: string,
+  id: string,
+  content: string,
+  opts: { dryRun?: boolean } = {},
+): Promise<WriteResult> {
+  const { abs, rel } = resolveInBundle(bundleRoot, id);
+  const { frontmatter } = parseDocument(content);
+  const issues = runGates(defaultGates, { path: rel, body: content, frontmatter });
+  let written = false;
+  if (!issues.some((i) => i.level === "error") && !opts.dryRun) {
+    await mkdir(dirname(abs), { recursive: true });
+    await writeFile(abs, content, "utf8");
+    written = true;
+  }
+  return { id: rel.replace(/\.md$/, ""), path: abs, written, issues };
+}
+
 export interface IngestResult {
   id: string;
   path: string;
@@ -151,32 +193,20 @@ export async function ingestBundle(
   opts: { dryRun?: boolean } = {},
 ): Promise<IngestResult> {
   const built = buildNote(input);
-  const rel = `${built.id}.md`;
-  if (rel.split("/").includes("..")) throw new Error(`invalid id: ${built.id}`);
-  const abs = resolve(bundleRoot, rel);
-  if (abs !== bundleRoot && !abs.startsWith(bundleRoot + sep)) {
-    throw new Error(`id escapes the bundle: ${built.id}`);
-  }
-
-  const gateIssues = runGates(defaultGates, {
-    path: rel,
-    body: built.content,
-    frontmatter: built.frontmatter,
-  });
+  const wr = await writeNote(bundleRoot, built.id, built.content, opts);
   const kinds = await loadKinds(kindsDir);
   const schemaIssues = validateNote(
-    { id: built.id, path: abs, frontmatter: built.frontmatter, body: input.content },
+    { id: built.id, path: wr.path, frontmatter: built.frontmatter, body: input.content },
     kinds,
   );
-
-  const blocked = gateIssues.some((i) => i.level === "error");
-  let written = false;
-  if (!blocked && !opts.dryRun) {
-    await mkdir(dirname(abs), { recursive: true });
-    await writeFile(abs, built.content, "utf8");
-    written = true;
-  }
-  return { id: built.id, path: abs, written, content: built.content, gateIssues, schemaIssues };
+  return {
+    id: built.id,
+    path: wr.path,
+    written: wr.written,
+    content: built.content,
+    gateIssues: wr.issues,
+    schemaIssues,
+  };
 }
 
 /** Query a bundle on disk: walk, load, and rank against the filter. */
