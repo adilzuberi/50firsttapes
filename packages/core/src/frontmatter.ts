@@ -16,7 +16,9 @@ export function parseDocument(raw: string): Parsed {
   if (!m) return { frontmatter: {}, body: raw };
   const body = raw.slice(m[0].length);
   try {
-    const parsed = parseYaml(m[1]);
+    // logLevel "error": don't chatter to stderr on odd-but-parseable frontmatter
+    // (e.g. a template note with a mapping as a key); real errors still throw.
+    const parsed = parseYaml(m[1], { logLevel: "error" });
     const fm =
       parsed && typeof parsed === "object" && !Array.isArray(parsed)
         ? (parsed as Frontmatter)

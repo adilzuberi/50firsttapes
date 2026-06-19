@@ -4,6 +4,7 @@ import { parseDocument } from "./frontmatter.js";
 import { loadKinds } from "./kinds.js";
 import { validateNote } from "./validator.js";
 import { checkCommittedBlobs, checkStructure } from "./structure.js";
+import { queryNotes, type QueryFilter, type QueryHit, type QueryOptions } from "./query.js";
 import type { BlobInfo, Issue, LintOptions, LintResult, Note } from "./types.js";
 
 export * from "./types.js";
@@ -11,6 +12,7 @@ export * from "./frontmatter.js";
 export * from "./kinds.js";
 export * from "./validator.js";
 export * from "./structure.js";
+export * from "./query.js";
 export * from "./govern.js";
 export * from "./anchor.js";
 
@@ -121,4 +123,16 @@ export async function lintBundle(
     checked: notes.length,
     blobsChecked: blobs.length,
   };
+}
+
+/** Query a bundle on disk: walk, load, and rank against the filter. */
+export async function queryBundle(
+  bundleRoot: string,
+  kindsDir: string,
+  filter: QueryFilter,
+  opts: Omit<QueryOptions, "knownKinds"> = {},
+): Promise<QueryHit[]> {
+  const [{ noteFiles }, kinds] = await Promise.all([walkBundle(bundleRoot), loadKinds(kindsDir)]);
+  const notes = await Promise.all(noteFiles.map((p) => loadNote(p, bundleRoot)));
+  return queryNotes(notes, filter, { ...opts, knownKinds: kinds.keys() });
 }

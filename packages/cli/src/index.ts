@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { relative, resolve } from "node:path";
-import { lintBundle, type Issue } from "@50firsttapes/core";
+import { lintBundle, queryBundle, type Issue } from "@50firsttapes/core";
 
 const program = new Command();
 program
@@ -61,7 +61,56 @@ program
     if (!result.ok) process.exitCode = 1;
   });
 
-for (const verb of ["ingest", "query", "write", "govern"] as const) {
+interface QueryOpts {
+  bundle: string;
+  kinds: string;
+  kind?: string;
+  tag?: string;
+  status?: string;
+  linksTo?: string;
+  limit: string;
+  json?: boolean;
+}
+
+program
+  .command("query")
+  .description("find notes by text, kind, tag, status, or backlinks")
+  .argument("[text...]", "free-text terms (all must match)")
+  .option("--bundle <path>", "path to the bundle root", ".")
+  .option("--kinds <dir>", "path to the kind schemas", "spec/kinds")
+  .option("--kind <kind>", "only notes of this kind")
+  .option("--tag <tag>", "only notes with this tag (or a deeper tag under it)")
+  .option("--status <status>", "only notes with this status")
+  .option("--links-to <id>", "only notes that link to this concept id (backlinks)")
+  .option("--limit <n>", "max results", "20")
+  .option("--json", "machine-readable output")
+  .action(async (text: string[], opts: QueryOpts) => {
+    const root = resolve(opts.bundle);
+    const hits = await queryBundle(
+      root,
+      resolve(opts.kinds),
+      {
+        text: text.join(" ") || undefined,
+        kind: opts.kind,
+        tag: opts.tag,
+        status: opts.status,
+        linksTo: opts.linksTo,
+      },
+      { limit: Number(opts.limit) },
+    );
+
+    if (opts.json) {
+      console.log(JSON.stringify(hits, null, 2));
+      return;
+    }
+    for (const h of hits) {
+      console.log(`${h.id}${h.title ? ` — ${h.title}` : ""}${h.kind ? `  [${h.kind}]` : ""}`);
+      if (h.snippet) console.log(`    ${h.snippet}`);
+    }
+    console.log(`\n${hits.length} result(s)`);
+  });
+
+for (const verb of ["ingest", "write", "govern"] as const) {
   program
     .command(verb)
     .description(`${verb} - not yet implemented (v1 stub)`)

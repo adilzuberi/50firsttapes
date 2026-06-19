@@ -56,6 +56,16 @@ A **kind** is an OKF `type` plus a validated frontmatter schema. Kinds are decla
 
 Any error fails the run (exit 1); warnings do not. `--no-structure` runs the schema pass alone.
 
+## Query
+
+`tapes query` is the find verb. Filters AND together:
+
+- free text — every term must appear in a note's title, body, or id; title hits rank highest, newest wins ties.
+- `--kind` / `--tag` / `--status` — by resolved kind, by tag (exact or a `prefix/` of a deeper tag), or by lifecycle status.
+- `--links-to <id>` — backlinks: notes that link to a concept id, over path links and wikilinks alike.
+
+`--json` emits machine-readable hits; `--limit` caps results. Query reads the files on demand — no committed index.
+
 ## Editing
 
 Writes are surgical: a note is patched by addressing a span via its content hash (an anchor) and emitting only the anchor plus the new text — token-cheap and concurrency-safe (a patch is rejected if the anchored content has moved). Whole-file rewrites are avoided.
