@@ -46,8 +46,29 @@ function resolveWithin(cfg: McpConfig, id: string): { abs: string; rel: string }
   return { abs, rel: withExt };
 }
 
+/** List the entries directly under a bundle folder, hiding dot-dirs and off-limits. */
+async function listDir(cfg: McpConfig, rawPath: string) {
+  const rel = rawPath.replace(/^\/+/, "");
+  if (rel.split("/").includes("..") || OFF_LIMITS.test(rel)) throw new Error("invalid path");
+  const entries = await readdir(resolve(cfg.bundle, rel), { withFileTypes: true });
+  return entries
+    .filter((e) => !e.name.startsWith(".") && e.name !== "node_modules" && !OFF_LIMITS.test(e.name))
+    .map((e) => ({ name: e.name, path: rel ? `${rel}/${e.name}` : e.name, type: e.isDirectory() ? "dir" : "file" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function blocks(issues: Issue[]): boolean {
   return issues.some((i) => i.level === "error");
+}
+
+// Log/ entries are date-prefixed (YYYY-MM-DD-HHMM-...), so a reverse name sort is newest-first.
+const LOG_NAME = /^\d{4}-\d{2}-\d{2}-\d{4}-/;
+
+// session_bootstrap concatenates these in order; override with TAPES_BOOTSTRAP_FILES.
+function bootstrapFiles(): string[] {
+  const env = process.env.TAPES_BOOTSTRAP_FILES;
+  if (env) return env.split(",").map((s) => s.trim()).filter(Boolean);
+  return ["AI_INSTRUCTIONS.md", "index.md", "wiki/references/ai-pre-authorised-access.md"];
 }
 
 export interface ToolDef {
@@ -142,6 +163,54 @@ export const TOOL_DEFS: ToolDef[] = [
       required: ["id", "anchor", "replacement"],
     },
   },
+  {
+    name: "session_bootstrap",
+    description:
+      "MUST-CALL-FIRST in a new conversation. Returns the bundle's session-start files concatenated (vault rules, dashboard, access ledger). Pass lite=true to skip the large index/dashboard. Compatibility tool for wiki-mcp consumers.",
+    inputSchema: {
+      type: "object",
+      properties: { lite: { type: "boolean", description: "Skip the index/dashboard file for a smaller response." } },
+    },
+  },
+  {
+    name: "read_note",
+    description: "Read one file by its relative path (wiki-mcp compatibility). Off-limits paths are refused.",
+    inputSchema: {
+      type: "object",
+      properties: { path: { type: "string", description: "Relative path inside the bundle, e.g. wiki/decisions/foo.md" } },
+      required: ["path"],
+    },
+  },
+  {
+    name: "list_folder",
+    description: "List the entries under a bundle folder (wiki-mcp compatibility). Off-limits folders are hidden.",
+    inputSchema: {
+      type: "object",
+      properties: { path: { type: "string", description: "Relative folder path, e.g. wiki/decisions" } },
+      required: ["path"],
+    },
+  },
+  {
+    name: "search",
+    description:
+      "Full-text search across the bundle, returning ranked path + title + snippet lines (wiki-mcp compatibility; composed onto query). Optional folder scope.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search terms." },
+        scope: { type: "string", description: "Optional folder to scope the search." },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "get_recent_logs",
+    description: "Return the newest N entries from the bundle's Log/ folder, newest first (wiki-mcp compatibility). Default 10, max 50.",
+    inputSchema: {
+      type: "object",
+      properties: { n: { type: "integer", description: "Number of entries (1-50)." } },
+    },
+  },
 ];
 
 export type Handler = (args: Record<string, unknown>) => Promise<unknown>;
@@ -172,18 +241,7 @@ export function createHandlers(cfg: McpConfig): Record<string, Handler> {
     },
 
     async list(args) {
-      const rel = (str(args.path) ?? "").replace(/^\/+/, "");
-      if (rel.split("/").includes("..") || OFF_LIMITS.test(rel)) throw new Error("invalid path");
-      const absDir = resolve(cfg.bundle, rel);
-      const entries = await readdir(absDir, { withFileTypes: true });
-      return entries
-        .filter((e) => !e.name.startsWith(".") && e.name !== "node_modules" && !OFF_LIMITS.test(e.name))
-        .map((e) => ({
-          name: e.name,
-          path: rel ? `${rel}/${e.name}` : e.name,
-          type: e.isDirectory() ? "dir" : "file",
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+      return listDir(cfg, str(args.path) ?? "");
     },
 
     async lint(args) {
@@ -233,6 +291,64 @@ export function createHandlers(cfg: McpConfig): Record<string, Handler> {
       const result = applyPatch(body, { anchor: anchorHash, replacement });
       if (!result.ok) return { written: false, reason: result.reason };
       return writeNote(cfg.bundle, id, head + result.body);
+    },
+
+    // --- wiki-mcp compatibility: same tool names/shapes so the engine can stand in for the gateway ---
+
+    async session_bootstrap(args) {
+      const lite = args.lite === true;
+      const files = bootstrapFiles().filter((f) => !lite || !/(^|\/)index\.md$/i.test(f));
+      const parts: string[] = [];
+      for (const rel of files) {
+        try {
+          const { abs } = resolveWithin(cfg, rel);
+          parts.push(`# === ${rel} ===\n\n${await readFile(abs, "utf8")}`);
+        } catch (e) {
+          parts.push(`# === ${rel} ===\n\n[unavailable: ${e instanceof Error ? e.message : String(e)}]`);
+        }
+      }
+      return parts.join("\n\n");
+    },
+
+    async read_note(args) {
+      const path = str(args.path);
+      if (!path) throw new Error("read_note requires a path");
+      const { abs, rel } = resolveWithin(cfg, path);
+      if (OFF_LIMITS.test(rel)) throw new Error(`off-limits path: ${path}`);
+      return readFile(abs, "utf8");
+    },
+
+    async list_folder(args) {
+      if (typeof args.path !== "string") throw new Error("list_folder requires a path");
+      return listDir(cfg, args.path);
+    },
+
+    async search(args) {
+      const query = str(args.query);
+      if (!query) throw new Error("search requires a query");
+      const scope = str(args.scope)?.replace(/^\/+|\/+$/g, "");
+      let hits = await queryBundle(cfg.bundle, cfg.kinds, { text: query }, { limit: 20 });
+      if (scope) hits = hits.filter((h) => h.id === scope || h.id.startsWith(`${scope}/`));
+      const lines = hits.map(
+        (h) => `${h.id}${h.title ? ` — ${h.title}` : ""}${h.snippet ? `\n  ${h.snippet}` : ""}`,
+      );
+      return lines.join("\n") || "[no matches]";
+    },
+
+    async get_recent_logs(args) {
+      const n = Math.max(1, Math.min(Number(args.n ?? 10) || 10, 50));
+      let names: string[];
+      try {
+        names = (await readdir(resolve(cfg.bundle, "Log"))).filter((f) => f.endsWith(".md") && LOG_NAME.test(f));
+      } catch {
+        return [];
+      }
+      names.sort().reverse();
+      const out: Array<{ path: string; preview: string }> = [];
+      for (const name of names.slice(0, n)) {
+        out.push({ path: `Log/${name}`, preview: (await readFile(resolve(cfg.bundle, "Log", name), "utf8")).slice(0, 400) });
+      }
+      return out;
     },
   };
 }

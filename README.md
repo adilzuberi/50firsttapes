@@ -43,7 +43,7 @@ tapes govern wiki/draft draft.md            # would this write be accepted?
 
 - `@50firsttapes/core` — schema system, validator, structural-health checks, query, ingest, governance gates, hash-anchored edits, OKF read/write.
 - `@50firsttapes/cli` — the `tapes` command: `ingest · query · lint · write · govern`.
-- `@50firsttapes/mcp` — a stdio MCP server exposing the verbs to any client (Claude Code, Codex, claude.ai). Seven tools: read (`query`/`read`/`list`/`lint`) and gated write (`write`/`patch`/`govern`).
+- `@50firsttapes/mcp` — a stdio or HTTP MCP server exposing the verbs to any client (Claude Code, Codex, claude.ai). The native tools — read (`query`/`read`/`list`/`lint`) and gated write (`write`/`patch`/`govern`) — plus wiki-mcp-compatible tools (`session_bootstrap`, `search`, `read_note`, `list_folder`, `get_recent_logs`) so it can stand in for the read-only wiki-mcp gateway.
 - `@50firsttapes/remote` — a git-remote adapter (Forgejo · GitHub · bare). 50 First Tapes depends on git, never on a forge.
 
 ## Quickstart

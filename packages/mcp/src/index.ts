@@ -36,7 +36,8 @@ export async function start(): Promise<void> {
     }
     try {
       const result = await handler((args ?? {}) as Record<string, unknown>);
-      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      const text = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+      return { content: [{ type: "text" as const, text }] };
     } catch (e) {
       const text = e instanceof Error ? e.message : String(e);
       return { isError: true, content: [{ type: "text" as const, text }] };

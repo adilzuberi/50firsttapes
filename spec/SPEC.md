@@ -79,6 +79,7 @@ Intake is raw, curation comes after: the governance gates **block** (an off-limi
 - **Read:** `query`, `read`, `list`, `lint`.
 - **Write (gated):** `write` and `patch` run every change through the governance gates — an off-limits path (`private`/`secrets`) or a credential-like string is refused and nothing is written. `patch` is hash-anchored: it replaces a paragraph by its content hash and is rejected if that content has moved, so concurrent edits never clobber.
 - **Govern:** `govern` dry-runs the gates on a proposed note without writing it.
+- **wiki-mcp compatibility:** `session_bootstrap`, `read_note`, `list_folder`, `search`, `get_recent_logs` — the same names and shapes the read-only wiki-mcp serves, so existing gateway consumers work unchanged. `search` composes onto `query`; `session_bootstrap`'s file list is set by `TAPES_BOOTSTRAP_FILES`.
 
 ## Editing
 

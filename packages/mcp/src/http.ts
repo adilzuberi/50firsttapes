@@ -70,7 +70,8 @@ export async function startHttp(cfg: McpConfig, port: number): Promise<void> {
       if (!handler) return err(id, -32601, `unknown tool: ${name}`);
       try {
         const result = await handler(args);
-        return ok(id, { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] });
+        const text = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+        return ok(id, { content: [{ type: "text", text }] });
       } catch (e) {
         return ok(id, {
           isError: true,
