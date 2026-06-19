@@ -3,14 +3,19 @@
   "version": "0.0.0",
   "license": "Apache-2.0",
   "type": "module",
-  "bin": { "tapes-mcp": "./dist/index.js" },
-  "files": ["dist"],
+  "bin": {
+    "tapes-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "node --test"
   },
   "dependencies": {
-    "@50firsttapes/core": "workspace:*"
+    "@50firsttapes/core": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0"
   }
 }

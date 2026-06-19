@@ -66,6 +66,14 @@ Any error fails the run (exit 1); warnings do not. `--no-structure` runs the sch
 
 `--json` emits machine-readable hits; `--limit` caps results. Query reads the files on demand — no committed index.
 
+## Protocol — MCP
+
+`@50firsttapes/mcp` (`tapes-mcp`) is a stdio MCP server exposing the verbs to any client (Claude Code, claude.ai, Codex). It supersedes the read-only wiki-mcp. Configure with `TAPES_BUNDLE` (bundle root) and `TAPES_KINDS`.
+
+- **Read:** `query`, `read`, `list`, `lint`.
+- **Write (gated):** `write` and `patch` run every change through the governance gates — an off-limits path (`private`/`secrets`) or a credential-like string is refused and nothing is written. `patch` is hash-anchored: it replaces a paragraph by its content hash and is rejected if that content has moved, so concurrent edits never clobber.
+- **Govern:** `govern` dry-runs the gates on a proposed note without writing it.
+
 ## Editing
 
 Writes are surgical: a note is patched by addressing a span via its content hash (an anchor) and emitting only the anchor plus the new text — token-cheap and concurrency-safe (a patch is rejected if the anchored content has moved). Whole-file rewrites are avoided.

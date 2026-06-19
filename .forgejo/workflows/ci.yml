@@ -18,5 +18,7 @@ jobs:
       - run: pnpm -r lint
       - name: unit tests
         run: pnpm --filter @50firsttapes/core test
+      - name: mcp tests
+        run: pnpm --filter @50firsttapes/mcp test
       - name: lint the sample bundle with tapes
         run: node packages/cli/dist/index.js lint examples/sample-bundle

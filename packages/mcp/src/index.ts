@@ -1,17 +1,41 @@
-// 50 First Tapes - MCP server (stub).
-//
-// Exposes the protocol verbs to any MCP client (Claude Code, Codex, omp,
-// claude.ai). Supersedes wiki-mcp.
-//
-// TODO(v1): add @modelcontextprotocol/sdk, wire a stdio server, port
-// wiki-mcp's session_bootstrap + read tools, then add write/govern behind
-// the governance gates from @50firsttapes/core.
-import { lintNotes } from "@50firsttapes/core";
+#!/usr/bin/env node
+// 50 First Tapes — MCP server. Exposes the protocol verbs (query/read/list/lint
+// read; write/patch/govern write) to any MCP client over stdio. Supersedes the
+// read-only wiki-mcp. Configure with TAPES_BUNDLE (vault root) and TAPES_KINDS.
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { join, resolve } from "node:path";
+import { createHandlers, SERVER_INSTRUCTIONS, TOOL_DEFS } from "./handlers.js";
 
 export async function start(): Promise<void> {
-  console.log("50firsttapes mcp: stub - SDK wiring is a v1 task. See spec/SPEC.md.");
-  // The core protocol is already callable; the MCP transport is what's pending.
-  void lintNotes;
+  const bundle = resolve(process.env.TAPES_BUNDLE ?? process.cwd());
+  const kinds = resolve(process.env.TAPES_KINDS ?? join(bundle, "spec/kinds"));
+  const handlers = createHandlers({ bundle, kinds });
+
+  const server = new Server(
+    { name: "tapes-mcp", version: "0.0.0" },
+    { capabilities: { tools: {} }, instructions: SERVER_INSTRUCTIONS },
+  );
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOL_DEFS }));
+
+  server.setRequestHandler(CallToolRequestSchema, async (req) => {
+    const { name, arguments: args } = req.params;
+    const handler = handlers[name];
+    if (!handler) {
+      return { isError: true, content: [{ type: "text" as const, text: `unknown tool: ${name}` }] };
+    }
+    try {
+      const result = await handler((args ?? {}) as Record<string, unknown>);
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+    } catch (e) {
+      const text = e instanceof Error ? e.message : String(e);
+      return { isError: true, content: [{ type: "text" as const, text }] };
+    }
+  });
+
+  await server.connect(new StdioServerTransport());
 }
 
 const invokedDirectly = import.meta.url === `file://${process.argv[1]}`;
