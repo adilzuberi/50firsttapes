@@ -1,0 +1,7 @@
+name: log
+description: An append-only activity log entry.
+fields:
+  - { name: date, required: true, type: date }
+  - { name: time, required: true, type: string }
+  - { name: verb, required: true, type: string, enum: [system, fix, feat, publish, plan, review, tidy, tag, ingest, run] }
+  - { name: summary, required: true, type: string }

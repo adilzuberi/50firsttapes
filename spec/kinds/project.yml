@@ -1,0 +1,7 @@
+name: project
+description: A compound project with its own folder and lifecycle.
+fields:
+  - { name: title, required: true, type: string }
+  - { name: summary, required: true, type: string }
+  - { name: status, required: true, type: string, enum: [draft, active, paused, done, archived] }
+  - { name: date, required: true, type: date }

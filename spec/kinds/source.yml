@@ -1,0 +1,7 @@
+name: source
+description: An immutable factual summary of an external source.
+fields:
+  - { name: title, required: true, type: string }
+  - { name: summary, required: true, type: string }
+  - { name: date, required: true, type: date }
+  - { name: source, required: true, type: string }

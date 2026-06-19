@@ -1,0 +1,10 @@
+name: note
+description: A unit of synthesised knowledge — the default wiki note.
+fields:
+  - { name: title, required: true, type: string }
+  - { name: summary, required: true, type: string }
+  - { name: status, required: true, type: string, enum: [stated, inferred, decided, superseded] }
+  - { name: date, required: true, type: date }
+  - { name: source, required: false, type: list }
+  - { name: related, required: false, type: list }
+  - { name: tags, required: false, type: list }

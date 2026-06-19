@@ -1,0 +1,6 @@
+name: person
+description: A person — contact, intellectual, or collaborator.
+fields:
+  - { name: title, required: true, type: string }
+  - { name: summary, required: false, type: string }
+  - { name: date, required: true, type: date }

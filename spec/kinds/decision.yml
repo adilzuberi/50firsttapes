@@ -1,0 +1,9 @@
+name: decision
+description: An ADR-shaped decision with context and consequences.
+fields:
+  - { name: title, required: true, type: string }
+  - { name: summary, required: true, type: string }
+  - { name: status, required: true, type: string, enum: [stated, decided, superseded] }
+  - { name: confidence, required: false, type: string, enum: [high, medium, low] }
+  - { name: date, required: true, type: date }
+  - { name: source, required: false, type: list }

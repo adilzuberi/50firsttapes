@@ -1,0 +1,8 @@
+name: infra
+description: A server, app, or service the system operates.
+fields:
+  - { name: title, required: true, type: string }
+  - { name: summary, required: true, type: string }
+  - { name: resource, required: false, type: string }
+  - { name: status, required: false, type: string }
+  - { name: date, required: true, type: date }

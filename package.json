@@ -1,0 +1,20 @@
+{
+  "name": "knowledge-os",
+  "version": "0.0.0",
+  "private": true,
+  "description": "An OKF-compatible, local-first agentic knowledge engine.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "packageManager": "pnpm@11.1.1",
+  "scripts": {
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "kos": "node packages/cli/dist/index.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  }
+}
