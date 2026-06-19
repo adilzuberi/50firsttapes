@@ -1,15 +1,15 @@
-// Knowledge OS - MCP server (stub).
+// 50 First Tapes - MCP server (stub).
 //
 // Exposes the protocol verbs to any MCP client (Claude Code, Codex, omp,
 // claude.ai). Supersedes wiki-mcp.
 //
 // TODO(v1): add @modelcontextprotocol/sdk, wire a stdio server, port
 // wiki-mcp's session_bootstrap + read tools, then add write/govern behind
-// the governance gates from @knowledge-os/core.
-import { lintNotes } from "@knowledge-os/core";
+// the governance gates from @50firsttapes/core.
+import { lintNotes } from "@50firsttapes/core";
 
 export async function start(): Promise<void> {
-  console.log("knowledge-os mcp: stub - SDK wiring is a v1 task. See spec/SPEC.md.");
+  console.log("50firsttapes mcp: stub - SDK wiring is a v1 task. See spec/SPEC.md.");
   // The core protocol is already callable; the MCP transport is what's pending.
   void lintNotes;
 }

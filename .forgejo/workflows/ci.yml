@@ -16,5 +16,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r build
       - run: pnpm -r lint
-      - name: lint the sample bundle with kos
+      - name: lint the sample bundle with tapes
         run: node packages/cli/dist/index.js lint examples/sample-bundle

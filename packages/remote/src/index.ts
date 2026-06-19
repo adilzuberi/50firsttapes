@@ -1,6 +1,6 @@
-// Knowledge OS - git remote adapter.
+// 50 First Tapes - git remote adapter.
 //
-// Knowledge OS depends on git, not on any forge. A "remote" is a swappable
+// 50 First Tapes depends on git, not on any forge. A "remote" is a swappable
 // provider: Forgejo, GitHub, a bare server, or a local path. This module owns
 // remote config and the push-mirror setup. v1 shells out to git.
 import { execFile } from "node:child_process";

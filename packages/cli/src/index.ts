@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import { readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { lintNotes } from "@knowledge-os/core";
+import { lintNotes } from "@50firsttapes/core";
 
 const SKIP = /^(node_modules|\.git|private-no-ai|private|no-ai|secrets)$/;
 
@@ -22,8 +22,8 @@ async function walk(dir: string): Promise<string[]> {
 
 const program = new Command();
 program
-  .name("kos")
-  .description("Knowledge OS - the agent protocol over your vault")
+  .name("tapes")
+  .description("50 First Tapes - the agent protocol over your vault")
   .version("0.0.0");
 
 program
@@ -48,7 +48,7 @@ for (const verb of ["ingest", "query", "write", "govern"] as const) {
     .command(verb)
     .description(`${verb} - not yet implemented (v1 stub)`)
     .action(() => {
-      console.log(`kos ${verb}: stub - see the Knowledge OS v1 plan.`);
+      console.log(`tapes ${verb}: stub - see the 50 First Tapes v1 plan.`);
     });
 }
 

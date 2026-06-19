@@ -1,7 +1,7 @@
 ---
 type: note
 title: Hello
-summary: The smallest valid note in a Knowledge OS bundle.
+summary: The smallest valid note in a 50 First Tapes bundle.
 status: stated
 date: 2026-06-19
 source:

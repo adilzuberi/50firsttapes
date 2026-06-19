@@ -1,5 +1,5 @@
 {
-  "name": "knowledge-os",
+  "name": "50firsttapes",
   "version": "0.0.0",
   "private": true,
   "description": "An OKF-compatible, local-first agentic knowledge engine.",
@@ -11,7 +11,7 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
-    "kos": "node packages/cli/dist/index.js"
+    "tapes": "node packages/cli/dist/index.js"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping build Knowledge OS.
+Thanks for helping build 50 First Tapes.
 
 ## Where the code lives
 

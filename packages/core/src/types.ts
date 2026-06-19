@@ -1,4 +1,4 @@
-// Core domain types for the Knowledge OS substrate and protocol.
+// Core domain types for the 50 First Tapes substrate and protocol.
 
 /** A note's parsed frontmatter: arbitrary keys, OKF-compatible. */
 export type Frontmatter = Record<string, unknown> & {

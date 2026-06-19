@@ -1,9 +1,9 @@
 {
-  "name": "@knowledge-os/cli",
+  "name": "@50firsttapes/cli",
   "version": "0.0.0",
   "license": "Apache-2.0",
   "type": "module",
-  "bin": { "kos": "./dist/index.js" },
+  "bin": { "tapes": "./dist/index.js" },
   "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -11,7 +11,7 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@knowledge-os/core": "workspace:*",
+    "@50firsttapes/core": "workspace:*",
     "commander": "^12.1.0"
   }
 }
