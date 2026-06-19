@@ -44,7 +44,17 @@ A **kind** is an OKF `type` plus a validated frontmatter schema. Kinds are decla
 
 ## Validation and lint
 
-`tapes lint` checks every file against its kind's schema and reports structural drift (missing `type`, unknown kinds, missing required fields, bad enums). Structural-health checks (orphans, broken or stale links, committed-blob guard, hot-core budget) are added as the engine grows.
+`tapes lint` runs two passes over a bundle:
+
+- **Schema** — every note against its kind: missing `type`, unknown kinds, missing required fields, bad enums. The kind is read from `type:` or, failing that, a `type/<kind>` tag.
+- **Structural health** —
+  - `broken-link` (error): a path link `[x](/a.md)` or wikilink `[[a]]` that resolves to no note.
+  - `stale-link` (warn): a link to a note that is `superseded`/`archived`/etc. or carries `replaced_by`.
+  - `orphan` (warn): a note nothing links to (reserved `index`/`log`/`readme` excluded). Skip with `--no-orphans`.
+  - `committed-blob` / `large-blob` (warn): a derived-index artefact or oversized file committed into the substrate.
+  - `hot-core-budget` (warn): the always-loaded set (`index`, plus notes flagged `hot: true` or tagged `hot`/`core`) over its token budget.
+
+Any error fails the run (exit 1); warnings do not. `--no-structure` runs the schema pass alone.
 
 ## Editing
 

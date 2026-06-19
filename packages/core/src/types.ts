@@ -13,6 +13,8 @@ export interface Note {
   path: string;
   frontmatter: Frontmatter;
   body: string;
+  /** Set when the frontmatter block failed to parse as YAML. */
+  parseError?: string;
 }
 
 /** A field rule within a Kind schema. */
@@ -45,7 +47,30 @@ export interface Issue {
 export interface LintResult {
   ok: boolean;
   issues: Issue[];
+  /** Number of notes (markdown files) checked. */
   checked: number;
+  /** Number of non-markdown files inspected by the committed-blob guard. */
+  blobsChecked?: number;
+}
+
+/** A non-markdown file, for the committed-blob guard. */
+export interface BlobInfo {
+  /** Path relative to the bundle root. */
+  path: string;
+  /** Size in bytes. */
+  size: number;
+}
+
+/** Knobs for a full-bundle lint. All checks default on. */
+export interface LintOptions {
+  /** Run structural-health checks (links, orphans, hot-core, blobs). Default true. */
+  structure?: boolean;
+  /** Include the orphan check. Default true. */
+  orphans?: boolean;
+  /** Hot-core token budget. Default 8000. */
+  hotCoreTokenBudget?: number;
+  /** Committed-blob size threshold in bytes. Default 1 MiB. */
+  maxBlobBytes?: number;
 }
 
 /** The protocol verbs every consumer (CLI, MCP, library) shares. */
