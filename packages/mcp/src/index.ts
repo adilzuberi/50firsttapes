@@ -7,10 +7,18 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { join, resolve } from "node:path";
 import { createHandlers, SERVER_INSTRUCTIONS, TOOL_DEFS } from "./handlers.js";
+import { startHttp } from "./http.js";
 
 export async function start(): Promise<void> {
   const bundle = resolve(process.env.TAPES_BUNDLE ?? process.cwd());
   const kinds = resolve(process.env.TAPES_KINDS ?? join(bundle, "spec/kinds"));
+
+  // Hosted mode: serve MCP over HTTP with Bearer auth. Default stays stdio.
+  if (process.env.TAPES_HTTP_PORT) {
+    await startHttp({ bundle, kinds }, Number(process.env.TAPES_HTTP_PORT));
+    return;
+  }
+
   const handlers = createHandlers({ bundle, kinds });
 
   const server = new Server(

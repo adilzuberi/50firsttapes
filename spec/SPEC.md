@@ -74,7 +74,7 @@ Intake is raw, curation comes after: the governance gates **block** (an off-limi
 
 ## Protocol — MCP
 
-`@50firsttapes/mcp` (`tapes-mcp`) is a stdio MCP server exposing the verbs to any client (Claude Code, claude.ai, Codex). It supersedes the read-only wiki-mcp. Configure with `TAPES_BUNDLE` (bundle root) and `TAPES_KINDS`.
+`@50firsttapes/mcp` (`tapes-mcp`) is an MCP server exposing the verbs to any client (Claude Code, claude.ai, Codex). It supersedes the read-only wiki-mcp. Configure with `TAPES_BUNDLE` (bundle root) and `TAPES_KINDS`. Two transports: **stdio** (default, local clients) and **HTTP** (set `TAPES_HTTP_PORT` + `TAPES_MCP_TOKEN`) — discovery is open, every tool call needs a Bearer token.
 
 - **Read:** `query`, `read`, `list`, `lint`.
 - **Write (gated):** `write` and `patch` run every change through the governance gates — an off-limits path (`private`/`secrets`) or a credential-like string is refused and nothing is written. `patch` is hash-anchored: it replaces a paragraph by its content hash and is rejected if that content has moved, so concurrent edits never clobber.

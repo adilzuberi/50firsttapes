@@ -55,10 +55,16 @@ node packages/cli/dist/index.js lint examples/sample-bundle
 node packages/cli/dist/index.js query --kind note --bundle examples/sample-bundle
 ```
 
-Run the MCP server over a bundle:
+Run the MCP server over a bundle. Stdio is the default (local clients like Claude Code):
 
 ```bash
 TAPES_BUNDLE=/path/to/bundle node packages/mcp/dist/index.js
+```
+
+For hosted use, serve over HTTP with Bearer auth (discovery is open; tool calls require a token):
+
+```bash
+TAPES_HTTP_PORT=8080 TAPES_MCP_TOKEN=sk-… TAPES_BUNDLE=/path/to/bundle node packages/mcp/dist/index.js
 ```
 
 ## Source of truth
