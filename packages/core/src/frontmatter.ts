@@ -1,4 +1,4 @@
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import type { Frontmatter } from "./types.js";
 
 const FM = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
@@ -28,4 +28,11 @@ export function parseDocument(raw: string): Parsed {
     const error = e instanceof Error ? e.message.split("\n")[0] : String(e);
     return { frontmatter: {}, body, error };
   }
+}
+
+/** Serialise frontmatter + body into a note. YAML emission handles quoting/escaping. */
+export function serializeNote(frontmatter: Frontmatter, body: string): string {
+  const fm = stringifyYaml(frontmatter, { lineWidth: 0 });
+  const trimmed = body.replace(/^\n+/, "").replace(/\s+$/, "");
+  return `---\n${fm}---\n\n${trimmed}\n`;
 }

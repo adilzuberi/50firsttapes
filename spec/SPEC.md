@@ -66,6 +66,12 @@ Any error fails the run (exit 1); warnings do not. `--no-structure` runs the sch
 
 `--json` emits machine-readable hits; `--limit` caps results. Query reads the files on demand — no committed index.
 
+## Ingest
+
+`tapes ingest [source]` brings raw material (a file, or stdin) into the bundle as a governed, kind-scaffolded note. It derives a title (from `--title`, the first heading, else `untitled`), files it at `--id` (default `inbox/<slug>`), and scaffolds frontmatter — `type`, `title`, `date`, `source`, plus any `--summary`/`--status`/`--tag`.
+
+Intake is raw, curation comes after: the governance gates **block** (an off-limits path or a credential-like string is refused, nothing written), while schema gaps (missing required fields) are **reported, not blocked**. `--dry-run` assembles and checks without writing.
+
 ## Protocol — MCP
 
 `@50firsttapes/mcp` (`tapes-mcp`) is a stdio MCP server exposing the verbs to any client (Claude Code, claude.ai, Codex). It supersedes the read-only wiki-mcp. Configure with `TAPES_BUNDLE` (bundle root) and `TAPES_KINDS`.

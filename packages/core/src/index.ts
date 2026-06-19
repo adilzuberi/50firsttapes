@@ -1,10 +1,12 @@
-import { readFile, readdir, stat } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { parseDocument } from "./frontmatter.js";
 import { loadKinds } from "./kinds.js";
 import { validateNote } from "./validator.js";
 import { checkCommittedBlobs, checkStructure } from "./structure.js";
 import { queryNotes, type QueryFilter, type QueryHit, type QueryOptions } from "./query.js";
+import { buildNote, type IngestInput } from "./ingest.js";
+import { defaultGates, runGates } from "./govern.js";
 import type { BlobInfo, Issue, LintOptions, LintResult, Note } from "./types.js";
 
 export * from "./types.js";
@@ -13,6 +15,7 @@ export * from "./kinds.js";
 export * from "./validator.js";
 export * from "./structure.js";
 export * from "./query.js";
+export * from "./ingest.js";
 export * from "./govern.js";
 export * from "./anchor.js";
 
@@ -123,6 +126,57 @@ export async function lintBundle(
     checked: notes.length,
     blobsChecked: blobs.length,
   };
+}
+
+export interface IngestResult {
+  id: string;
+  path: string;
+  written: boolean;
+  content: string;
+  /** Governance findings — an error here blocks the write. */
+  gateIssues: Issue[];
+  /** Schema findings — reported for curation, never block intake. */
+  schemaIssues: Issue[];
+}
+
+/**
+ * Ingest raw material as a governed, kind-scaffolded note. The governance gates
+ * block (off-limits paths, credentials); schema gaps are reported, not blocked —
+ * intake is raw, curation comes after. `dryRun` assembles and checks without writing.
+ */
+export async function ingestBundle(
+  bundleRoot: string,
+  kindsDir: string,
+  input: IngestInput,
+  opts: { dryRun?: boolean } = {},
+): Promise<IngestResult> {
+  const built = buildNote(input);
+  const rel = `${built.id}.md`;
+  if (rel.split("/").includes("..")) throw new Error(`invalid id: ${built.id}`);
+  const abs = resolve(bundleRoot, rel);
+  if (abs !== bundleRoot && !abs.startsWith(bundleRoot + sep)) {
+    throw new Error(`id escapes the bundle: ${built.id}`);
+  }
+
+  const gateIssues = runGates(defaultGates, {
+    path: rel,
+    body: built.content,
+    frontmatter: built.frontmatter,
+  });
+  const kinds = await loadKinds(kindsDir);
+  const schemaIssues = validateNote(
+    { id: built.id, path: abs, frontmatter: built.frontmatter, body: input.content },
+    kinds,
+  );
+
+  const blocked = gateIssues.some((i) => i.level === "error");
+  let written = false;
+  if (!blocked && !opts.dryRun) {
+    await mkdir(dirname(abs), { recursive: true });
+    await writeFile(abs, built.content, "utf8");
+    written = true;
+  }
+  return { id: built.id, path: abs, written, content: built.content, gateIssues, schemaIssues };
 }
 
 /** Query a bundle on disk: walk, load, and rank against the filter. */

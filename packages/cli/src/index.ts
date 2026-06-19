@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { relative, resolve } from "node:path";
-import { lintBundle, queryBundle, type Issue } from "@50firsttapes/core";
+import { readFile } from "node:fs/promises";
+import { basename, relative, resolve } from "node:path";
+import { ingestBundle, lintBundle, queryBundle, type Issue } from "@50firsttapes/core";
 
 const program = new Command();
 program
@@ -110,7 +111,80 @@ program
     console.log(`\n${hits.length} result(s)`);
   });
 
-for (const verb of ["ingest", "write", "govern"] as const) {
+interface IngestOpts {
+  bundle: string;
+  kinds: string;
+  kind: string;
+  title?: string;
+  id?: string;
+  summary?: string;
+  status?: string;
+  source?: string;
+  tag?: string[];
+  dryRun?: boolean;
+}
+
+async function readStdin(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const c of process.stdin) chunks.push(c as Buffer);
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+program
+  .command("ingest")
+  .description("bring new material into the bundle as a governed, kind-scaffolded note")
+  .argument("[source]", "source file to ingest; omit to read stdin")
+  .option("--bundle <path>", "path to the bundle root", ".")
+  .option("--kinds <dir>", "path to the kind schemas", "spec/kinds")
+  .option("--kind <kind>", "note kind", "note")
+  .option("--title <title>", "title (default: first heading or 'untitled')")
+  .option("--id <id>", "concept id / path (default: inbox/<slug>)")
+  .option("--summary <text>", "summary frontmatter")
+  .option("--status <status>", "status frontmatter")
+  .option("--source <text>", "provenance (default: the source filename)")
+  .option("--tag <tag...>", "tag(s) to add")
+  .option("--dry-run", "assemble and check, but do not write")
+  .action(async (source: string | undefined, opts: IngestOpts) => {
+    const root = resolve(opts.bundle);
+    const content = source ? await readFile(resolve(source), "utf8") : await readStdin();
+    const res = await ingestBundle(
+      root,
+      resolve(opts.kinds),
+      {
+        content,
+        kind: opts.kind,
+        title: opts.title,
+        id: opts.id,
+        summary: opts.summary,
+        status: opts.status,
+        source: opts.source ?? (source ? basename(source) : "stdin"),
+        tags: opts.tag,
+      },
+      { dryRun: opts.dryRun },
+    );
+
+    if (opts.dryRun) {
+      console.log(res.content);
+      console.log("--- checks ---");
+    }
+    for (const i of res.gateIssues) console.log(`x [${i.code}] ${i.message}`);
+    if (res.gateIssues.some((i) => i.level === "error")) {
+      console.log(`\nrefused — ${res.id} not written (governance gate)`);
+      process.exitCode = 1;
+      return;
+    }
+
+    if (res.written) console.log(`ingested → ${relative(root, res.path)}`);
+    else if (opts.dryRun) console.log(`(dry-run) would write → ${res.id}.md`);
+
+    const gaps = res.schemaIssues.filter((i) => i.code !== "unknown-kind");
+    if (gaps.length) {
+      console.log("still needs (per kind schema):");
+      for (const i of gaps) console.log(`  ! [${i.code}] ${i.message}`);
+    }
+  });
+
+for (const verb of ["write", "govern"] as const) {
   program
     .command(verb)
     .description(`${verb} - not yet implemented (v1 stub)`)
