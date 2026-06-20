@@ -1,5 +1,14 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHandlers, SERVER_INSTRUCTIONS, TOOL_DEFS, type McpConfig } from "./handlers.js";
+import {
+  assertOAuthReady,
+  handleOAuth,
+  jwtAuthorized,
+  oauthConfigFromEnv,
+  OAuthStore,
+  wwwAuthenticate,
+  type OAuthConfig,
+} from "./oauth.js";
 
 // MCP JSON-RPC over HTTP, mirroring the shape the read-only wiki-mcp serves to
 // claude.ai + LibreChat — so this is a drop-in replacement for those clients.
@@ -21,9 +30,13 @@ function tokensFromEnv(): Set<string> {
   );
 }
 
-function authorized(req: IncomingMessage, tokens: Set<string>): boolean {
+// Authorised if the Bearer is a configured opaque token (LobeChat/LibreChat) or
+// a valid JWT we minted via the OAuth flow (claude.ai).
+function authorized(req: IncomingMessage, tokens: Set<string>, oauth: OAuthConfig): boolean {
   const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization ?? "");
-  return m ? tokens.has(m[1].trim()) : false;
+  if (!m) return false;
+  const token = m[1].trim();
+  return tokens.has(token) || jwtAuthorized(token, oauth);
 }
 
 async function readJson(req: IncomingMessage): Promise<{ method?: string; params?: Record<string, unknown>; id?: unknown }> {
@@ -46,9 +59,14 @@ function isOpen(method: string | undefined): boolean {
 /** Serve the protocol over HTTP with Bearer auth. Stdio stays the default; this is for hosted use. */
 export async function startHttp(cfg: McpConfig, port: number): Promise<void> {
   const tokens = tokensFromEnv();
-  if (tokens.size === 0) {
-    throw new Error("HTTP mode requires TAPES_MCP_TOKEN (one or more comma-separated Bearer tokens)");
+  const oauth = oauthConfigFromEnv();
+  assertOAuthReady(oauth);
+  if (tokens.size === 0 && !oauth.enabled) {
+    throw new Error(
+      "HTTP mode requires an auth method: TAPES_MCP_TOKEN (opaque Bearer) and/or TAPES_MCP_OAUTH_ENABLED=true",
+    );
   }
+  const oauthStore = oauth.enabled ? new OAuthStore(oauth.dataDir) : null;
   const handlers = createHandlers(cfg);
 
   async function dispatch(method: string | undefined, params: Record<string, unknown>, id: unknown) {
@@ -93,6 +111,8 @@ export async function startHttp(cfg: McpConfig, port: number): Promise<void> {
     };
 
     if (url === "/health") return json(200, { status: "ok", server: "tapes-mcp" });
+    // OAuth discovery/registration/login/token routes (claude.ai). No-op when disabled.
+    if (oauthStore && (await handleOAuth(req, res, oauth, oauthStore))) return;
     if (url !== "/mcp" || req.method !== "POST") {
       res.writeHead(404).end("not found");
       return;
@@ -106,11 +126,11 @@ export async function startHttp(cfg: McpConfig, port: number): Promise<void> {
       return json(400, err(null, -32700, "parse error"));
     }
     process.stderr.write(
-      `[mcp] method=${body.method ?? "?"} auth=${authorized(req, tokens) ? "y" : "n"} ` +
+      `[mcp] method=${body.method ?? "?"} auth=${authorized(req, tokens, oauth) ? "y" : "n"} ` +
         `accept="${String(req.headers["accept"] ?? "").slice(0, 40)}" ua="${String(req.headers["user-agent"] ?? "").slice(0, 40)}"\n`,
     );
-    if (!isOpen(body.method) && !authorized(req, tokens)) {
-      res.writeHead(401, { "www-authenticate": "Bearer", "content-type": "application/json" });
+    if (!isOpen(body.method) && !authorized(req, tokens, oauth)) {
+      res.writeHead(401, { "www-authenticate": wwwAuthenticate(oauth), "content-type": "application/json" });
       res.end(JSON.stringify(err(body.id ?? null, -32001, "unauthorised")));
       return;
     }
@@ -118,5 +138,8 @@ export async function startHttp(cfg: McpConfig, port: number): Promise<void> {
   });
 
   await new Promise<void>((r) => server.listen(port, r));
-  process.stderr.write(`tapes-mcp HTTP on :${port} (/mcp; Bearer required for tool calls)\n`);
+  const authModes = [tokens.size > 0 ? "opaque-bearer" : null, oauth.enabled ? `oauth(${oauth.publicUrl})` : null]
+    .filter(Boolean)
+    .join(" + ");
+  process.stderr.write(`tapes-mcp HTTP on :${port} (/mcp; auth: ${authModes})\n`);
 }
