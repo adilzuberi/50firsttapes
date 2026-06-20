@@ -83,6 +83,9 @@ export async function startHttp(cfg: McpConfig, port: number): Promise<void> {
   }
 
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    process.stderr.write(
+      `[req] ${req.method} ${req.url} ua="${String(req.headers["user-agent"] ?? "").slice(0, 40)}"\n`,
+    );
     const url = (req.url ?? "").split("?")[0];
     const json = (status: number, payload: unknown) => {
       res.writeHead(status, { "content-type": "application/json" });
@@ -99,8 +102,13 @@ export async function startHttp(cfg: McpConfig, port: number): Promise<void> {
     try {
       body = await readJson(req);
     } catch {
+      process.stderr.write(`[mcp] parse-error from ua="${String(req.headers["user-agent"] ?? "").slice(0, 48)}"\n`);
       return json(400, err(null, -32700, "parse error"));
     }
+    process.stderr.write(
+      `[mcp] method=${body.method ?? "?"} auth=${authorized(req, tokens) ? "y" : "n"} ` +
+        `accept="${String(req.headers["accept"] ?? "").slice(0, 40)}" ua="${String(req.headers["user-agent"] ?? "").slice(0, 40)}"\n`,
+    );
     if (!isOpen(body.method) && !authorized(req, tokens)) {
       res.writeHead(401, { "www-authenticate": "Bearer", "content-type": "application/json" });
       res.end(JSON.stringify(err(body.id ?? null, -32001, "unauthorised")));
