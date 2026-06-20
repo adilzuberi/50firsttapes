@@ -8,7 +8,7 @@
 FROM node:22-slim AS build
 WORKDIR /app
 RUN corepack enable
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY packages ./packages
 COPY spec ./spec
 RUN pnpm install --frozen-lockfile && pnpm -r build
