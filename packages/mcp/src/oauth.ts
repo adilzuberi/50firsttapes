@@ -19,7 +19,10 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 export const OAUTH_SCOPE = "vault";
 const CODE_TTL_SECONDS = 5 * 60; // claude.ai exchanges the code within seconds
-const TOKEN_TTL_SECONDS = 24 * 60 * 60; // 24h access-token lifetime
+// Access-token lifetime in seconds (env TAPES_MCP_OAUTH_TOKEN_TTL, default 24h).
+// 0 or less means never expire — the token carries no `exp` claim, so a client
+// like claude.ai stays signed in until the JWT signing secret is rotated.
+const TOKEN_TTL_SECONDS = Number(process.env.TAPES_MCP_OAUTH_TOKEN_TTL ?? "86400");
 
 export interface OAuthConfig {
   enabled: boolean;
@@ -434,23 +437,21 @@ export async function handleOAuth(
     const redeemed = store.redeemCode(code, clientId, redirectUri, codeVerifier);
     if (!redeemed) return oauthError(400, "invalid_grant", "invalid or expired authorization code");
     const now = Math.floor(Date.now() / 1000);
-    const accessToken = jwtEncode(
-      {
-        iss: cfg.publicUrl,
-        sub: "adil",
-        aud: clientId,
-        iat: now,
-        exp: now + TOKEN_TTL_SECONDS,
-        scope: redeemed.scope || OAUTH_SCOPE,
-      },
-      cfg.jwtSecret,
-    );
-    return sendJson(200, {
-      access_token: accessToken,
-      token_type: "Bearer",
-      expires_in: TOKEN_TTL_SECONDS,
+    const claims: Record<string, unknown> = {
+      iss: cfg.publicUrl,
+      sub: "adil",
+      aud: clientId,
+      iat: now,
       scope: redeemed.scope || OAUTH_SCOPE,
-    });
+    };
+    if (TOKEN_TTL_SECONDS > 0) claims.exp = now + TOKEN_TTL_SECONDS;
+    const tokenResponse: Record<string, unknown> = {
+      access_token: jwtEncode(claims, cfg.jwtSecret),
+      token_type: "Bearer",
+      scope: redeemed.scope || OAUTH_SCOPE,
+    };
+    if (TOKEN_TTL_SECONDS > 0) tokenResponse.expires_in = TOKEN_TTL_SECONDS;
+    return sendJson(200, tokenResponse);
   }
 
   return false;
