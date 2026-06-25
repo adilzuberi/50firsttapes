@@ -6,3 +6,6 @@ coverage/
 .DS_Store
 .env
 .env.*
+
+# derived recall index — rebuilt on demand, never committed
+.tapes/

@@ -45,6 +45,7 @@ tapes govern wiki/draft draft.md            # would this write be accepted?
 - `@50firsttapes/cli` — the `tapes` command: `ingest · query · lint · write · govern`.
 - `@50firsttapes/mcp` — a stdio or HTTP MCP server exposing the verbs to any client (Claude Code, Codex, claude.ai). The native tools — read (`query`/`read`/`list`/`lint`) and gated write (`write`/`patch`/`govern`) — plus wiki-mcp-compatible tools (`session_bootstrap`, `search`, `read_note`, `list_folder`, `get_recent_logs`) so it can stand in for the read-only wiki-mcp gateway.
 - `@50firsttapes/remote` — a git-remote adapter (Forgejo · GitHub · bare). 50 First Tapes depends on git, never on a forge.
+- `@50firsttapes/recall` — the progressive-retrieval spine: a derived, incremental index under `.tapes/` (rebuilt on demand, never committed) and a layered `recall` (structure · lexical · semantic · memory · ai) fused by reciprocal-rank fusion, returned with provenance. The foundation slice ships the index and the no-model layers; the rest plug in behind one interface.
 
 ## Quickstart
 
